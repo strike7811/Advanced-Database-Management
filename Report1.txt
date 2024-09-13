@@ -1,0 +1,86 @@
+Report : Customer Monthly Orders
+purpose - Helps analyze and identify the top customers who contribute the most to the business's revenue during a particular period, providing insights into customer purchasing behavior and patterns.
+
+SQL code:
+CREATE OR REPLACE PROCEDURE prc_customerMonthlyOrders(
+  p_start_date DATE,
+  p_end_date DATE,
+  p_top_n NUMBER := 10
+) AS
+  -- Define variables to store results
+  v_customer_id CUSTOMER.CustID%TYPE;
+  v_customer_name CUSTOMER.CustName%TYPE;
+  v_order_date DATE;
+  v_total_amount NUMBER;
+  v_grand_total NUMBER := 0;
+
+  -- Declare cursors for fetching data
+  CURSOR top_customer_cursor IS
+    SELECT *
+    FROM (
+      SELECT C.CustID, C.CustName
+      FROM CUSTOMER C
+      JOIN ORDERMENU O ON C.CustID = O.CustID
+      WHERE O.OrderTime BETWEEN p_start_date AND p_end_date
+      GROUP BY C.CustID, C.CustName
+      ORDER BY SUM(O.GrandTotal) DESC
+    )
+    WHERE ROWNUM <= p_top_n;
+
+  CURSOR monthly_orders_cursor (p_customer_id CUSTOMER.CustID%TYPE) IS
+    SELECT O.OrderTime, SUM(O.GrandTotal) AS TotalAmount
+    FROM ORDERMENU O
+    WHERE O.CustID = p_customer_id AND O.OrderTime BETWEEN p_start_date AND p_end_date
+    GROUP BY O.OrderTime;
+
+BEGIN
+  -- Open the first cursor to fetch top customers
+  OPEN top_customer_cursor;
+
+  -- Iterate through top customers
+  LOOP
+    FETCH top_customer_cursor INTO v_customer_id, v_customer_name;
+    EXIT WHEN top_customer_cursor%NOTFOUND;
+
+    -- Initialize grand total for the current customer
+    v_grand_total := 0;
+
+    -- Display customer information
+    DBMS_OUTPUT.PUT_LINE(CHR(10));
+    DBMS_OUTPUT.PUT_LINE('Customer: ' || v_customer_name);
+    DBMS_OUTPUT.PUT_LINE('-------------------------------------');
+    DBMS_OUTPUT.PUT_LINE('Order Date' || '  | ' || 'Order Amount');
+    DBMS_OUTPUT.PUT_LINE('-------------------------------------');
+
+    -- Open the second cursor to fetch monthly orders for the current customer
+    OPEN monthly_orders_cursor(v_customer_id);
+
+    -- Iterate through monthly orders
+    LOOP
+      FETCH monthly_orders_cursor INTO v_order_date, v_total_amount;
+      EXIT WHEN monthly_orders_cursor%NOTFOUND;
+
+      -- Display monthly order details
+      DBMS_OUTPUT.PUT_LINE(
+        TO_CHAR(v_order_date, 'DD-Mon-YYYY') || ' | ' ||
+        TO_CHAR(v_total_amount, '9999.99')
+      );
+
+      -- Accumulate monthly total to the grand total
+      v_grand_total := v_grand_total + v_total_amount;
+    END LOOP;
+
+    -- Close the second cursor
+    CLOSE monthly_orders_cursor;
+
+    -- Display grand total for the customer
+    DBMS_OUTPUT.PUT_LINE('-------------------------------------');
+    DBMS_OUTPUT.PUT_LINE('Grand Total:  ' || TO_CHAR(v_grand_total, '9999.99'));
+  END LOOP;
+
+  -- Close the first cursor
+  CLOSE top_customer_cursor;
+END prc_customerMonthlyOrders;
+/
+
+EXEC prc_customerMonthlyOrders(DATE '2022-08-01', DATE '2022-12-31', 5);

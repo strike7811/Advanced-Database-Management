@@ -1,0 +1,26 @@
+---Query 8 : Delivery Count
+---purpose - To find out how many customer using each delivery platform to make an order. 
+
+set pagesize 120
+set linesize 120
+
+COLUMN DELIVERYCOMPANY FORMAT A15 TRUNCATE HEADING 'DELIVERYCOMPANY';
+COLUMN DELIVERYMONTH FORMAT A15 HEADING 'DELIVERYMONTH';
+BREAK ON DELIVERYCOMPANY SKIP 1;
+COMPUTE SUM LABEL 'SUM' OF DELIVERYCOUNT ON DELIVERYCOMPANY;
+
+CREATE OR REPLACE VIEW QUERY8 AS
+SELECT DeliveryCompany, 
+       TO_CHAR(D.DeliveryTime, 'MON-YYYY') AS DeliveryMonth, 
+       COUNT(OM.DeliveryID) AS DeliveryCount
+FROM DeliveryCompany DC, OrderMenu OM, Delivery D 
+WHERE D.DeliveryID = OM.DeliveryID AND D.CompanyID = DC.CompanyID AND 
+      D.DeliveryTime BETWEEN TO_DATE('01-AUG-2022', 'DD-MON-YYYY') AND TO_DATE('31-MAY-2023', 'DD-MON-YYYY')
+GROUP BY DeliveryCompany, TO_CHAR(D.DeliveryTime, 'MON-YYYY')
+ORDER BY DELIVERYCOMPANY, DeliveryCount DESC;
+
+SELECT * FROM QUERY8;
+
+CLEAR COLUMNS
+CLEAR BREAKS
+CLEAR COMPUTES

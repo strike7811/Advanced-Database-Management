@@ -1,0 +1,51 @@
+set pagesize 120
+set linesize 120
+--Customer According to purchase amount in a cetain period
+--Purpose: This report can be used for targeted marketing efforts. The restaurant can design special offers or loyalty programs to retain high-spending customers and encourage repeat business.
+
+SET SERVEROUTPUT ON
+CREATE OR REPLACE PROCEDURE prc_CustSpending(
+    p_StartDate DATE,
+    p_EndDate DATE
+)
+IS
+    v_TotalCustomers NUMBER := 0; 
+    
+BEGIN
+    SELECT COUNT(DISTINCT OM.CustID)
+    INTO v_TotalCustomers
+    FROM ORDERMENU OM
+    WHERE OM.OrderTime BETWEEN p_StartDate AND p_EndDate;
+
+    IF v_TotalCustomers = 0 THEN
+        -- If no customers found, display an error message
+        DBMS_OUTPUT.PUT_LINE('No customer orders found within the specified date range.');
+        RETURN; -- Exit the procedure
+    END IF;
+    DBMS_OUTPUT.PUT_LINE('------------------------------------------------------------------');
+    DBMS_OUTPUT.PUT_LINE('| Customer ID  |       Customer Name               | Total Spend |');
+    DBMS_OUTPUT.PUT_LINE('------------------------------------------------------------------');
+
+    FOR cust_rec IN (
+        SELECT * FROM (
+            SELECT C.CustID, C.CustName, SUM(OM.GrandTotal) AS TotalSpend
+            FROM CUSTOMER C
+            JOIN ORDERMENU OM ON C.CustID = OM.CustID
+            WHERE OM.OrderTime BETWEEN p_StartDate AND p_EndDate
+            GROUP BY C.CustID, C.CustName
+            ORDER BY TotalSpend DESC
+        )
+    )
+    LOOP
+        DBMS_OUTPUT.PUT_LINE('| ' || RPAD(cust_rec.CustID, 12) || ' | ' || RPAD(cust_rec.CustName, 33) || ' | ' || RPAD(cust_rec.TotalSpend, 11) || ' |');
+    END LOOP;
+    DBMS_OUTPUT.PUT_LINE('------------------------------------------------------------------');
+
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An error occurred: ' || SQLERRM);
+END;
+/
+
+EXEC prc_CustSpending(TO_DATE('01-AUG-2022', 'DD-MON-YYYY'), TO_DATE('31-JAN-2023', 'DD-MON-YYYY'));
+EXEC prc_CustSpending(TO_DATE('01-AUG-2020', 'DD-MON-YYYY'), TO_DATE('31-DEC-2020', 'DD-MON-YYYY'));

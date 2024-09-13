@@ -1,0 +1,40 @@
+set pagesize 120
+set linesize 120
+--Count bad reviews and see the percentage of bad reviews in certain period
+--Purpose: The procedure allows the restaurant to analyze customer feedback and assess the prevalence of "bad" reviews, where the feedback rating falls below a certain threshold. It considers a specific date range to focus on feedback and orders received during that period. It is useful for tracking changes in customer satisfaction over time.
+
+SET SERVEROUTPUT ON
+CREATE OR REPLACE PROCEDURE prc_BadReviewPercentage(
+    p_FeedbackRating IN NUMBER,
+    p_StartDate IN DATE,
+    p_EndDate IN DATE
+)
+IS
+    v_TotalOrders NUMBER := 0;
+    v_LowRatingOrders NUMBER := 0;
+    v_Percentage NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_TotalOrders FROM ORDERMENU WHERE OrderTime BETWEEN p_StartDate AND p_EndDate;
+    
+    IF v_TotalOrders = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('No orders found within the specified date range.');
+        RETURN; 
+    END IF;
+    
+    SELECT COUNT(*) INTO v_LowRatingOrders FROM ORDERMENU WHERE FeedbackID IN (
+        SELECT FeedbackID FROM FEEDBACK WHERE Rating < p_FeedbackRating
+    ) AND OrderTime BETWEEN p_StartDate AND p_EndDate;
+
+    v_Percentage := (v_LowRatingOrders / v_TotalOrders) * 100;
+
+    DBMS_OUTPUT.PUT_LINE('Total Orders (within date range): ' || v_TotalOrders);
+    DBMS_OUTPUT.PUT_LINE('Orders with ratings < ' || p_FeedbackRating || ' stars (within date range): ' || v_LowRatingOrders);
+    DBMS_OUTPUT.PUT_LINE('Percentage of low rating orders (within date range): ' || v_Percentage || '%');
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An error occurred: ' || SQLERRM);
+END;
+/
+EXEC prc_BadReviewPercentage(2, TO_DATE('01-AUG-2022', 'DD-MON-YYYY'), TO_DATE('31-AUG-2023', 'DD-MON-YYYY'));
+EXEC prc_BadReviewPercentage(2, TO_DATE('01-JAN-2023', 'DD-MON-YYYY'), TO_DATE('31-AUG-2023', 'DD-MON-YYYY'));
+EXEC prc_BadReviewPercentage(2, TO_DATE('01-JAN-2020', 'DD-MON-YYYY'), TO_DATE('01-APR-2020', 'DD-MON-YYYY'));

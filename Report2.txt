@@ -1,0 +1,49 @@
+Report : Reports of Feedback Attention By Gender
+purpose - The report provides insights into which feedback categories are more frequently mentioned by male and female customers, helping the business understand customer preferences and areas that may require improvement.
+
+SQL code:
+CREATE OR REPLACE PROCEDURE prc_feedbackAttention AS
+  -- Define variables to store results
+  v_feedback_desc FEEDBACK.FeedbackDesc%TYPE;
+  v_f_count NUMBER := 0;
+  v_m_count NUMBER := 0;
+
+  -- Declare cursor for fetching feedback descriptions
+  CURSOR feedback_desc_cursor IS
+    SELECT DISTINCT F.FeedbackDesc, 
+      SUM(CASE WHEN C.custGender = 'F' THEN 1 ELSE 0 END) AS FemaleCount,
+      SUM(CASE WHEN C.custGender = 'M' THEN 1 ELSE 0 END) AS MaleCount
+    FROM ORDERMENU OM
+    JOIN CUSTOMER C ON OM.CustID = C.CustID
+    JOIN FEEDBACK F ON OM.FeedbackID = F.FeedbackID
+    GROUP BY F.FeedbackDesc;
+
+BEGIN
+  -- Display the counts for the current feedback description
+  DBMS_OUTPUT.PUT_LINE(CHR(10));
+  DBMS_OUTPUT.PUT_LINE('============================================');
+  DBMS_OUTPUT.PUT_LINE('|       Feedback Attention by Gender       |');
+  DBMS_OUTPUT.PUT_LINE('|==========================================|');
+  DBMS_OUTPUT.PUT_LINE('| Feedback Description   | Female |  Male  |');
+  DBMS_OUTPUT.PUT_LINE('|------------------------------------------|');
+
+  -- Open cursor
+  OPEN feedback_desc_cursor;
+
+  -- Loop through each feedback description
+  LOOP
+    FETCH feedback_desc_cursor INTO v_feedback_desc, v_f_count, v_m_count;
+    EXIT WHEN feedback_desc_cursor%NOTFOUND;
+
+    DBMS_OUTPUT.PUT_LINE('| ' || RPAD(v_feedback_desc, 23) || '| ' || RPAD(v_f_count, 6) || ' | ' || RPAD(v_m_count, 6) || ' |');
+  END LOOP;
+
+  -- Close cursor
+  CLOSE feedback_desc_cursor;
+
+  -- Display the overall summary
+  DBMS_OUTPUT.PUT_LINE('============================================');
+END prc_feedbackAttention;
+/
+
+EXEC prc_feedbackAttention;
